@@ -4,6 +4,8 @@ What is Moodle ? [Open-source Learning platform](https://moodle.org/)
 
 This repository describes how to run Moodle on Azure platform services. Deployment will use Azure Database for MySql and Azure WebApp for hosting Docker. For running Docker Moodle image you can use other Azure services like Azure Managed Kubernetes or Azure Container Instances.
 
+**Result: WebApp cannot be used because long time of Docker initialization** (see bellow)
+
 If you want to run on virtual machines, simple go to [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/bitnami.moodle?tab=Overview) and select Moodle.
 
 **Moodle Admin site** after installation
@@ -81,7 +83,7 @@ php /opt/bitnami/moodle/admin/cli/install_database.php --lang=en --dataroot=/bit
 
 Create new Azure Web App for Containers service, my is jjmoodle
 
-- Price tier S1
+- Price tier P2V2 (S1 was problem to use because long docker start, has been restarted)
 - OS Linux
 - Configure container with Quickstart Nginx
 
@@ -89,12 +91,8 @@ Check website is running Nginx, my is https://jjmoodle.azurewebsites.net/
 
 Cleanup database (drop schema) or recreate MySql database. We have to recreate state for docker.
 
-https://docs.microsoft.com/en-us/azure/app-service/containers/tutorial-multi-container-app
-https://blogs.msdn.microsoft.com/appserviceteam/2018/05/07/multi-container/
-
 When created, start reconfiguration WebApp
 
-- Update Application settings - TODO: is it mandatory ?
 - Change Container settings to Docker Compose
 
 ```yaml
@@ -118,3 +116,7 @@ volumes:
 ```
 
 Single container (bitnami/moodle:latest) cannot be used because is needed to mount /bitnami to shared storage. Shared storage could be mounted to /home only.
+
+**Result: finnaly is not running** because long time of installation Moodle in Docker. Before installation is completed, container is killed automatically with WebApp and started new. New Docker container will not start because find database tables and cannot reinstall it. I tried different price tiers to reduce time of installation, no effect.
+
+Use VM instead of WebApp. I tested it, it's running correctly with Azure Datatabase for mySql
