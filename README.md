@@ -4,11 +4,9 @@ What is Moodle ? [Open-source Learning platform](https://moodle.org/)
 
 This repository describes how to run Moodle on Azure platform services. Deployment will use Azure Database for MySql and Azure WebApp for hosting Docker. For running Docker Moodle image you can use other Azure services like Azure Managed Kubernetes or Azure Container Instances.
 
-**Result: WebApp cannot be used because long time of Docker initialization** (see bellow)
-
 If you want to run on virtual machines, simple go to [Azure Marketplace](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/bitnami.moodle?tab=Overview) and select Moodle.
 
-**Moodle Admin site** after installation
+**Moodle Admin site** after installation and quick customization
 ![Moodle Admin web](media/moodle-admin.png)
 
 Using this **Azure platform services**
@@ -50,6 +48,14 @@ When finished, you will see: app-entrypoint.sh 18:37:28.67 INFO  ==> Starting mo
 
 Start browser on http://localhost (defaul admin username: user, password: bitnami)
 
+## Run Moodle in Docker-Compose locally
+
+YAML definition is in docker-compose.yml
+
+```bash
+docker-compose up -d
+```
+
 ### Troubleshooting installation
 
 Run Docker and run inside scripts
@@ -81,42 +87,39 @@ php /opt/bitnami/moodle/admin/cli/install_database.php --lang=en --dataroot=/bit
 
 ## Run on Azure WebApp
 
-Create new Azure Web App for Containers service, my is jjmoodle
+**Create new Azure Web App for Containers** service, my is jjmoodle
 
-- Price tier P2V2 (S1 was problem to use because long docker start, has been restarted)
+- Price tier P2V2 (S2 was too slow for installation)
 - OS Linux
 - Configure container with Quickstart Nginx
 
 Check website is running Nginx, my is https://jjmoodle.azurewebsites.net/
 
-Cleanup database (drop schema) or recreate MySql database. We have to recreate state for docker.
+**Cleanup database** (drop schema) or recreate MySql database. We have to recreate state for docker.
 
-When created, start reconfiguration WebApp
+[WebApp Multi-container app](https://docs.microsoft.com/en-us/azure/app-service/containers/tutorial-multi-container-app)
 
-- Change Container settings to Docker Compose
+[WebApp add persistent storage](https://docs.microsoft.com/en-us/azure/app-service/containers/tutorial-multi-container-app#add-persistent-storage)
 
-```yaml
-version: '3.3'
+[WebApp Custom containers FAQ](https://docs.microsoft.com/en-us/azure/app-service/containers/app-service-linux-faq#custom-containers)
 
-services:
-   moodle:
-     image: bitnami/moodle:latest
-     volumes:
-       - db_data:/bitnami
-     ports:
-       - "80:80"
-     restart: always
-     environment:
-       MARIADB_HOST=jjmoodleprem.mysql.database.azure.com
-       MOODLE_DATABASE_USER=jj@jjmoodleprem
-       MOODLE_DATABASE_NAME=bitnami_moodle
-       MOODLE_DATABASE_PASSWORD=azure-123
-volumes:
-    db_data:
+When WebApp created, start **reconfiguration WebApp**
+
+- Change Container settings to Docker Compose, load docker-compose-webapp.yml
+- Application settings add WEBSITES_ENABLE_APP_SERVICE_STORAGE=TRUE (because of persistent storage of moodle installation)
+- Application settings add WEBSITES_CONTAINER_START_TIME_LIMIT=900 (because of long container start)
+
+*Single container (bitnami/moodle:latest) cannot be used because is needed to mount /bitnami to shared storage. Shared storage could be mounted to /home only.*
+
+![WebApp Container settings](media/webapp-container.png)
+
+Next you have to **change sourcecode**, there is problem with session handling (from /bitnami/moodle/lib/classes/session/). There is used default [Files handler](https://docs.moodle.org/26/en/Session_handling#Session_drivers). Configure to use Database handler.
+
+- open WebApp as FTP directory
+- navigate to /bitnami/moodle/config.php
+- add this section under database connection section
+
+```php
+$CFG->session_handler_class = '\core\session\database';
+$CFG->session_database_acquire_lock_timeout = 120;
 ```
-
-Single container (bitnami/moodle:latest) cannot be used because is needed to mount /bitnami to shared storage. Shared storage could be mounted to /home only.
-
-**Result: finnaly is not running** because long time of installation Moodle in Docker. Before installation is completed, container is killed automatically with WebApp and started new. New Docker container will not start because find database tables and cannot reinstall it. I tried different price tiers to reduce time of installation, no effect.
-
-Use VM instead of WebApp. I tested it, it's running correctly with Azure Datatabase for mySql

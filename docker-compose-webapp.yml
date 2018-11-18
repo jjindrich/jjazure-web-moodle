@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+   moodle:
+     image: 'bitnami/moodle:latest'
+     volumes:
+       - ${WEBAPP_STORAGE_HOME}/bitnami:/bitnami
+     ports:
+       - '80:80'
+       - '443:443'
+     restart: always
+     environment:
+       - MARIADB_HOST=jjmoodleprem.mysql.database.azure.com
+       - MOODLE_DATABASE_USER=jj@jjmoodleprem
+       - MOODLE_DATABASE_NAME=bitnami_moodle
+       - MOODLE_DATABASE_PASSWORD=azure-123
